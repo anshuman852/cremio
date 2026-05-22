@@ -6,17 +6,18 @@ A functional way to access Stremio. Cremio is a TUI client built in Go with [Bub
 
 <img width="640" height="385" alt="usage" src="https://github.com/user-attachments/assets/7d8c0eba-7797-4425-97ab-ce8d20cd0555" />
 
+
 `Disclaimer: This tool neither allows nor encourages streaming and distribution of pirated media. The tool reflects a Proof-of-concept of a Stremio client without any Graphical interface, and the usage in all aspects is subject to the Users' liability and not the tools'.`
 
 ## Features
 
-- Browse catalogs from all installed Stremio addons
+- Browse catalogs from all installed Stremio addons (Note: Cremio doesn't come with any addon to provide Search capabilities or Streams, add your own addons)
 - Full-text search with automatic fallback to client-side filtering
-- Series support with season/episode navigation
+- Series support with season/episode navigation 
 - Stream resolution across multiple addons
-- Playback via mpv
+- Playback via mpv (should be in PATH)
 - Addon management (add/remove by URL with manifest validation)
-- Persistent configuration stored as JSON
+- Persistent configuration stored as JSON (in USERPROFILE)
 
 ## Prerequisites
 
@@ -29,7 +30,7 @@ A functional way to access Stremio. Cremio is a TUI client built in Go with [Bub
 Clone the repository and install dependencies:
 
 ```
-git clone https://github.com/soakhan/cremio.git
+git clone https://github.com/itssoap/cremio.git
 cd cremio
 go mod tidy
 ```
@@ -48,7 +49,7 @@ Build a standalone binary:
 go build -o cremio.exe .
 ```
 
-On Linux or macOS, omit the `.exe` extension:
+On Linux or macOS, omit the `.exe` extension (I haven't tested the build on these systems, will need assistance for this):
 
 ```
 go build -o cremio .
