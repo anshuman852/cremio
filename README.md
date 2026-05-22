@@ -1,6 +1,6 @@
 # Cremio
 
-Stremio belongs in the terminal. Cremio is a TUI client built in Go with Bubbletea that talks to Stremio addons, lets you browse catalogs, search for movies and series, pick episodes, and fire streams straight into mpv. No browser, no Electron, no nonsense.
+A functional way to access Stremio. Cremio is a TUI client built in Go with [Bubbletea](https://github.com/charmbracelet/bubbletea) that talks to Stremio addons, lets you browse catalogs (needs Cinemeta), search for movies and series, pick episodes, and fire streams straight into mpv. No browser, no Electron, no nonsense.
 
 ## Features
 
