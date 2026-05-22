@@ -123,4 +123,4 @@ Please avoid introducing new dependencies unless strictly necessary. Keep the co
 
 ## License
 
-This project is provided as-is without a specific license. Contact the author for usage terms.
+This project is licensed under the [MIT License](LICENSE).
