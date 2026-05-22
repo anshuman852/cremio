@@ -1,6 +1,8 @@
 # Cremio
 
-A functional way to access Stremio. Cremio is a TUI client built in Go with [Bubbletea](https://github.com/charmbracelet/bubbletea) that talks to Stremio addons, lets you browse catalogs (needs Cinemeta), search for movies and series, pick episodes, and fire streams straight into mpv. No browser, no Electron, no nonsense.
+A functional way to access Stremio. Cremio is a TUI client built in Go with [Bubbletea](https://github.com/charmbracelet/bubbletea) that talks to Stremio addons, lets you browse catalogs, search for movies and series, pick episodes, and fire streams straight into mpv. No browser, no Electron, no nonsense (_I really didn't want a UI_)
+
+<img width="640" height="385" alt="usage" src="https://github.com/user-attachments/assets/7d8c0eba-7797-4425-97ab-ce8d20cd0555" />
 
 ## Features
 
@@ -8,10 +10,9 @@ A functional way to access Stremio. Cremio is a TUI client built in Go with [Bub
 - Full-text search with automatic fallback to client-side filtering
 - Series support with season/episode navigation
 - Stream resolution across multiple addons
-- Playback via mpv (any stream URL, magnet link, or YouTube ID)
+- Playback via mpv
 - Addon management (add/remove by URL with manifest validation)
 - Persistent configuration stored as JSON
-- Animated loading indicators on all async operations
 
 ## Prerequisites
 
