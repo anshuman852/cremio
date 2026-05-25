@@ -166,6 +166,17 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 					}
 				}
 			}
+		case "f":
+			if m.meta != nil && m.meta.Type == "series" && len(m.meta.Videos) > 0 {
+				videos := m.meta.Videos
+				metaType := m.meta.Type
+				return m, func() tea.Msg {
+					return NavigateToAllStreamsMsg{
+						Videos: videos,
+						Type:   metaType,
+					}
+				}
+			}
 		}
 	}
 
@@ -237,7 +248,7 @@ func (m DetailModel) View() string {
 	} else {
 		// For series, show episode list
 		sections = append(sections, m.list.View())
-		sections = append(sections, HelpStyle.Render("enter: find streams for episode • esc: back"))
+		sections = append(sections, HelpStyle.Render("enter: streams for episode \u2022 f: streams for all episodes \u2022 esc: back"))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)

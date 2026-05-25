@@ -73,8 +73,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.screen == ScreenSearch && a.search.inputFocused {
 				break
 			}
+			if a.screen == ScreenStreams && a.streams.filterActive {
+				break
+			}
 			return a, tea.Quit
 		case "esc", "escape":
+			if a.screen == ScreenStreams && a.streams.filterActive {
+				break
+			}
 			if a.screen == ScreenDetail {
 				a.screen = a.prevScreen
 				return a, nil
@@ -119,8 +125,19 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.screen = ScreenStreams
 		a.streams.loading = true
 		a.streams.err = nil
+		a.streams.allItems = nil
+		a.streams.filterInput.SetValue("")
 		a.streams.list.SetItems(nil)
 		return a, tea.Batch(a.streams.spinner.Tick, a.streams.LoadStreams(msg))
+
+	case NavigateToAllStreamsMsg:
+		a.screen = ScreenStreams
+		a.streams.loading = true
+		a.streams.err = nil
+		a.streams.allItems = nil
+		a.streams.filterInput.SetValue("")
+		a.streams.list.SetItems(nil)
+		return a, tea.Batch(a.streams.spinner.Tick, a.streams.LoadAllStreams(msg))
 
 	case AddonAddedMsg:
 		// Refresh home catalogs when addon is added
@@ -208,6 +225,11 @@ type NavigateToDetailMsg struct {
 type NavigateToStreamsMsg struct {
 	ID   string
 	Type string
+}
+
+type NavigateToAllStreamsMsg struct {
+	Videos []stremio.Video
+	Type   string
 }
 
 type AddonAddedMsg struct{}

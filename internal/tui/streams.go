@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/soakhan/cremio/internal/config"
@@ -14,10 +15,17 @@ import (
 )
 
 type streamItem struct {
-	stream stremio.Stream
+	stream       stremio.Stream
+	episodeLabel string
 }
 
-func (s streamItem) Title() string { return s.stream.DisplayName() }
+func (s streamItem) Title() string {
+	name := s.stream.DisplayName()
+	if s.episodeLabel != "" {
+		return s.episodeLabel + " | " + name
+	}
+	return name
+}
 func (s streamItem) Description() string {
 	if s.stream.Description != "" {
 		return s.stream.Description
@@ -34,15 +42,18 @@ func (s streamItem) Description() string {
 func (s streamItem) FilterValue() string { return s.stream.DisplayName() }
 
 type StreamsModel struct {
-	list    list.Model
-	spinner spinner.Model
-	client  *stremio.Client
-	config  *config.Config
-	loading bool
-	err     error
-	playErr error
-	width   int
-	height  int
+	list         list.Model
+	spinner      spinner.Model
+	filterInput  textinput.Model
+	client       *stremio.Client
+	config       *config.Config
+	allItems     []streamItem
+	filterActive bool
+	loading      bool
+	err          error
+	playErr      error
+	width        int
+	height       int
 }
 
 type streamsLoadedMsg struct {
@@ -66,18 +77,24 @@ func NewStreamsModel(client *stremio.Client, cfg *config.Config) StreamsModel {
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("170"))
 
+	fi := textinput.New()
+	fi.Placeholder = "Filter: +include -exclude ..."
+	fi.CharLimit = 200
+
 	return StreamsModel{
-		list:    l,
-		spinner: s,
-		client:  client,
-		config:  cfg,
+		list:        l,
+		spinner:     s,
+		filterInput: fi,
+		client:      client,
+		config:      cfg,
 	}
 }
 
 func (m *StreamsModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
-	m.list.SetSize(w, h-2)
+	m.filterInput.Width = w - 4
+	m.list.SetSize(w, h-4)
 }
 
 func (m StreamsModel) LoadStreams(nav NavigateToStreamsMsg) tea.Cmd {
@@ -100,6 +117,51 @@ func (m StreamsModel) LoadStreams(nav NavigateToStreamsMsg) tea.Cmd {
 	}
 }
 
+func (m StreamsModel) LoadAllStreams(nav NavigateToAllStreamsMsg) tea.Cmd {
+	return func() tea.Msg {
+		var allStreams []labeledStream
+		ctx := context.Background()
+
+		for _, video := range nav.Videos {
+			label := fmt.Sprintf("S%02dE%02d", video.Season, video.Episode)
+			for _, addonURL := range m.config.Addons {
+				resp, err := m.client.FetchStreams(ctx, addonURL, nav.Type, video.ID)
+				if err != nil {
+					continue
+				}
+				for _, s := range resp.Streams {
+					allStreams = append(allStreams, labeledStream{stream: s, label: label})
+				}
+			}
+		}
+
+		if len(allStreams) == 0 {
+			return streamsErrorMsg{err: fmt.Errorf("no streams found")}
+		}
+		return allStreamsLoadedMsg{streams: allStreams}
+	}
+}
+
+type labeledStream struct {
+	stream stremio.Stream
+	label  string
+}
+
+type allStreamsLoadedMsg struct {
+	streams []labeledStream
+}
+
+func (m *StreamsModel) applyFilter() {
+	f := ParseFilter(m.filterInput.Value())
+	var filtered []list.Item
+	for _, item := range m.allItems {
+		if f.IsEmpty() || f.Match(item.stream.Name, item.stream.Title) {
+			filtered = append(filtered, item)
+		}
+	}
+	m.list.SetItems(filtered)
+}
+
 func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case spinner.TickMsg:
@@ -112,11 +174,20 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 
 	case streamsLoadedMsg:
 		m.loading = false
-		items := make([]list.Item, len(msg.streams))
+		m.allItems = make([]streamItem, len(msg.streams))
 		for i, s := range msg.streams {
-			items[i] = streamItem{stream: s}
+			m.allItems[i] = streamItem{stream: s}
 		}
-		m.list.SetItems(items)
+		m.applyFilter()
+		return m, nil
+
+	case allStreamsLoadedMsg:
+		m.loading = false
+		m.allItems = make([]streamItem, len(msg.streams))
+		for i, ls := range msg.streams {
+			m.allItems[i] = streamItem{stream: ls.stream, episodeLabel: ls.label}
+		}
+		m.applyFilter()
 		return m, nil
 
 	case streamsErrorMsg:
@@ -132,7 +203,31 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.filterActive {
+			switch msg.String() {
+			case "enter":
+				m.filterActive = false
+				m.filterInput.Blur()
+				m.applyFilter()
+				return m, nil
+			case "esc":
+				m.filterActive = false
+				m.filterInput.Blur()
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.filterInput, cmd = m.filterInput.Update(msg)
+			return m, cmd
+		}
+
 		switch msg.String() {
+		case "/":
+			m.filterActive = true
+			return m, m.filterInput.Focus()
+		case "c":
+			m.filterInput.SetValue("")
+			m.applyFilter()
+			return m, nil
 		case "enter":
 			if item, ok := m.list.SelectedItem().(streamItem); ok {
 				url := item.stream.PlayableURL()
@@ -160,10 +255,14 @@ func (m StreamsModel) View() string {
 		return ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err))
 	}
 
+	var sections []string
+	sections = append(sections, m.filterInput.View())
+
 	view := m.list.View()
 	if m.playErr != nil {
 		view += "\n" + ErrorStyle.Render(fmt.Sprintf("MPV error: %v", m.playErr))
 	}
-	view += "\n" + HelpStyle.Render("enter: play with mpv • esc: back")
-	return view
+	sections = append(sections, view)
+	sections = append(sections, HelpStyle.Render("/ filter • c clear • enter: play • esc: back"))
+	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
