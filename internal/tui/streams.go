@@ -42,18 +42,20 @@ func (s streamItem) Description() string {
 func (s streamItem) FilterValue() string { return s.stream.DisplayName() }
 
 type StreamsModel struct {
-	list         list.Model
-	spinner      spinner.Model
-	filterInput  textinput.Model
-	client       *stremio.Client
-	config       *config.Config
-	allItems     []streamItem
-	filterActive bool
-	loading      bool
-	err          error
-	playErr      error
-	width        int
-	height       int
+	list          list.Model
+	spinner       spinner.Model
+	filterInput   textinput.Model
+	client        *stremio.Client
+	config        *config.Config
+	allItems      []streamItem
+	pendingVideos []stremio.Video
+	pendingType   string
+	filterActive  bool
+	loading       bool
+	err           error
+	playErr       error
+	width         int
+	height        int
 }
 
 type streamsLoadedMsg struct {
@@ -117,7 +119,7 @@ func (m StreamsModel) LoadStreams(nav NavigateToStreamsMsg) tea.Cmd {
 	}
 }
 
-func (m StreamsModel) LoadAllStreams(nav NavigateToAllStreamsMsg) tea.Cmd {
+func (m StreamsModel) LoadAllStreams(nav NavigateToAllStreamsMsg, filter Filter) tea.Cmd {
 	return func() tea.Msg {
 		var allStreams []labeledStream
 		ctx := context.Background()
@@ -130,13 +132,15 @@ func (m StreamsModel) LoadAllStreams(nav NavigateToAllStreamsMsg) tea.Cmd {
 					continue
 				}
 				for _, s := range resp.Streams {
-					allStreams = append(allStreams, labeledStream{stream: s, label: label})
+					if filter.IsEmpty() || filter.Match(s.Name, s.Title) {
+						allStreams = append(allStreams, labeledStream{stream: s, label: label})
+					}
 				}
 			}
 		}
 
 		if len(allStreams) == 0 {
-			return streamsErrorMsg{err: fmt.Errorf("no streams found")}
+			return streamsErrorMsg{err: fmt.Errorf("no streams found matching filter")}
 		}
 		return allStreamsLoadedMsg{streams: allStreams}
 	}
@@ -208,6 +212,17 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 			case "enter":
 				m.filterActive = false
 				m.filterInput.Blur()
+				// If we have pending videos (batch series mode), fetch now with filter
+				if len(m.pendingVideos) > 0 {
+					f := ParseFilter(m.filterInput.Value())
+					if f.IsEmpty() {
+						return m, nil
+					}
+					m.loading = true
+					m.err = nil
+					nav := NavigateToAllStreamsMsg{Videos: m.pendingVideos, Type: m.pendingType}
+					return m, tea.Batch(m.spinner.Tick, m.LoadAllStreams(nav, f))
+				}
 				m.applyFilter()
 				return m, nil
 			case "esc":
@@ -257,6 +272,13 @@ func (m StreamsModel) View() string {
 
 	var sections []string
 	sections = append(sections, m.filterInput.View())
+
+	// If waiting for filter input in batch mode, show hint
+	if len(m.pendingVideos) > 0 && len(m.allItems) == 0 {
+		sections = append(sections, HelpStyle.Render("Type a filter and press enter to search all episodes"))
+		sections = append(sections, HelpStyle.Render("/ filter • esc: back"))
+		return lipgloss.JoinVertical(lipgloss.Left, sections...)
+	}
 
 	view := m.list.View()
 	if m.playErr != nil {

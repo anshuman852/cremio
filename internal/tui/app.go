@@ -126,18 +126,23 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.streams.loading = true
 		a.streams.err = nil
 		a.streams.allItems = nil
+		a.streams.pendingVideos = nil
+		a.streams.pendingType = ""
 		a.streams.filterInput.SetValue("")
 		a.streams.list.SetItems(nil)
 		return a, tea.Batch(a.streams.spinner.Tick, a.streams.LoadStreams(msg))
 
 	case NavigateToAllStreamsMsg:
 		a.screen = ScreenStreams
-		a.streams.loading = true
+		a.streams.loading = false
 		a.streams.err = nil
 		a.streams.allItems = nil
+		a.streams.pendingVideos = msg.Videos
+		a.streams.pendingType = msg.Type
 		a.streams.filterInput.SetValue("")
+		a.streams.filterActive = true
 		a.streams.list.SetItems(nil)
-		return a, tea.Batch(a.streams.spinner.Tick, a.streams.LoadAllStreams(msg))
+		return a, a.streams.filterInput.Focus()
 
 	case AddonAddedMsg:
 		// Refresh home catalogs when addon is added
