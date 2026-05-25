@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -26,17 +27,28 @@ func (v videoItem) Title() string {
 func (v videoItem) Description() string { return v.video.Overview }
 func (v videoItem) FilterValue() string { return v.video.Title }
 
+type seasonItem struct {
+	season       int
+	episodeCount int
+}
+
+func (s seasonItem) Title() string       { return fmt.Sprintf("Season %d", s.season) }
+func (s seasonItem) Description() string { return fmt.Sprintf("%d episodes", s.episodeCount) }
+func (s seasonItem) FilterValue() string { return fmt.Sprintf("Season %d", s.season) }
+
 type DetailModel struct {
-	meta        *stremio.Meta
-	list        list.Model
-	spinner     spinner.Model
-	client      *stremio.Client
-	config      *config.Config
-	loading     bool
-	err         error
-	width       int
-	height      int
-	contentType string
+	meta            *stremio.Meta
+	list            list.Model
+	spinner         spinner.Model
+	client          *stremio.Client
+	config          *config.Config
+	loading         bool
+	err             error
+	width           int
+	height          int
+	contentType     string
+	viewingEpisodes bool
+	selectedSeason  int
 }
 
 type metaLoadedMsg struct {
@@ -68,6 +80,36 @@ func (m *DetailModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	m.list.SetSize(w, h-10)
+}
+
+func (m *DetailModel) showSeasons() {
+	seasonMap := make(map[int]int)
+	for _, v := range m.meta.Videos {
+		seasonMap[v.Season]++
+	}
+	seasons := make([]int, 0, len(seasonMap))
+	for s := range seasonMap {
+		seasons = append(seasons, s)
+	}
+	sort.Ints(seasons)
+
+	items := make([]list.Item, len(seasons))
+	for i, s := range seasons {
+		items[i] = seasonItem{season: s, episodeCount: seasonMap[s]}
+	}
+	m.list.Title = "Seasons"
+	m.list.SetItems(items)
+}
+
+func (m *DetailModel) showEpisodesForSeason(season int) {
+	var items []list.Item
+	for _, v := range m.meta.Videos {
+		if v.Season == season {
+			items = append(items, videoItem{video: v})
+		}
+	}
+	m.list.Title = fmt.Sprintf("Season %d Episodes", season)
+	m.list.SetItems(items)
 }
 
 func (m DetailModel) LoadMeta(nav NavigateToDetailMsg) tea.Cmd {
@@ -127,8 +169,12 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 		m.loading = false
 		m.meta = msg.meta
 		m.contentType = msg.meta.Type
+		m.viewingEpisodes = false
+		m.selectedSeason = 0
 
-		if len(msg.meta.Videos) > 0 {
+		if msg.meta.Type == "series" && len(msg.meta.Videos) > 0 {
+			m.showSeasons()
+		} else if len(msg.meta.Videos) > 0 {
 			items := make([]list.Item, len(msg.meta.Videos))
 			for i, v := range msg.meta.Videos {
 				items[i] = videoItem{video: v}
@@ -144,6 +190,12 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
+		case "esc", "escape":
+			if m.viewingEpisodes {
+				m.viewingEpisodes = false
+				m.showSeasons()
+				return m, nil
+			}
 		case "enter":
 			if m.meta == nil {
 				return m, nil
@@ -157,7 +209,16 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 					}
 				}
 			}
-			// For series, use selected episode's video ID
+			// If viewing season list, drill into episodes
+			if !m.viewingEpisodes {
+				if item, ok := m.list.SelectedItem().(seasonItem); ok {
+					m.selectedSeason = item.season
+					m.viewingEpisodes = true
+					m.showEpisodesForSeason(item.season)
+					return m, nil
+				}
+			}
+			// If viewing episodes, navigate to streams
 			if item, ok := m.list.SelectedItem().(videoItem); ok {
 				return m, func() tea.Msg {
 					return NavigateToStreamsMsg{
@@ -168,7 +229,16 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 			}
 		case "f":
 			if m.meta != nil && m.meta.Type == "series" && len(m.meta.Videos) > 0 {
-				videos := m.meta.Videos
+				var videos []stremio.Video
+				if m.viewingEpisodes {
+					for _, v := range m.meta.Videos {
+						if v.Season == m.selectedSeason {
+							videos = append(videos, v)
+						}
+					}
+				} else {
+					videos = m.meta.Videos
+				}
 				metaType := m.meta.Type
 				return m, func() tea.Msg {
 					return NavigateToAllStreamsMsg{
@@ -245,10 +315,12 @@ func (m DetailModel) View() string {
 	// For movies, show prompt to play
 	if m.meta.Type == "movie" || len(m.meta.Videos) == 0 {
 		sections = append(sections, HelpStyle.Render("enter: find streams • esc: back"))
-	} else {
-		// For series, show episode list
+	} else if !m.viewingEpisodes {
 		sections = append(sections, m.list.View())
-		sections = append(sections, HelpStyle.Render("enter: streams for episode \u2022 f: streams for all episodes \u2022 esc: back"))
+		sections = append(sections, HelpStyle.Render("enter: view episodes \u2022 f: filter all episodes \u2022 esc: back"))
+	} else {
+		sections = append(sections, m.list.View())
+		sections = append(sections, HelpStyle.Render("enter: streams \u2022 f: filter season \u2022 esc: back to seasons"))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)

@@ -81,6 +81,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.screen == ScreenStreams && a.streams.filterActive {
 				break
 			}
+			if a.screen == ScreenDetail && a.detail.viewingEpisodes {
+				break
+			}
 			if a.screen == ScreenDetail {
 				a.screen = a.prevScreen
 				return a, nil
