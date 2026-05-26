@@ -2,6 +2,7 @@ package history
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -95,6 +96,17 @@ func ExtractIMDBID(id string) string {
 		return id[:idx]
 	}
 	return id
+}
+
+// ParseEpisodeID extracts the season and episode numbers from a Stremio video ID.
+// e.g. "tt1234567:2:5" → (2, 5)
+// Returns (0, 0) if the ID is not an episode format.
+func ParseEpisodeID(id string) (season, episode int) {
+	_, err := fmt.Sscanf(id, "%*[^:]:%d:%d", &season, &episode)
+	if err != nil {
+		return 0, 0
+	}
+	return season, episode
 }
 
 // IsMovieWatched returns true if a movie with the given IMDB ID is watched.
@@ -202,6 +214,35 @@ func (h *WatchHistory) ToggleEpisode(imdbID string, season, episode int) bool {
 		Number:    episode,
 		WatchedAt: now(),
 	})
+	return true
+}
+
+// ToggleSeason marks all episodes in a season as watched, or removes them all
+// if the season is already fully watched. episodeNumbers should list all
+// episode numbers in the season.
+func (h *WatchHistory) ToggleSeason(imdbID string, season int, episodeNumbers []int) bool {
+	if h.IsSeasonWatched(imdbID, season, len(episodeNumbers)) {
+		// Unwatch: remove all episodes in this season
+		for _, s := range h.Shows {
+			if s.IDs.IMDB != imdbID {
+				continue
+			}
+			for i, sn := range s.Seasons {
+				if sn.Number == season {
+					s.Seasons = append(s.Seasons[:i], s.Seasons[i+1:]...)
+					break
+				}
+			}
+		}
+		h.cleanupEmpty()
+		return false
+	}
+	// Watch: mark all missing episodes as watched
+	for _, ep := range episodeNumbers {
+		if !h.IsEpisodeWatched(imdbID, season, ep) {
+			h.ToggleEpisode(imdbID, season, ep)
+		}
+	}
 	return true
 }
 

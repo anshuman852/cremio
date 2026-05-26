@@ -141,6 +141,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.streams.allItems = nil
 		a.streams.pendingVideos = nil
 		a.streams.pendingType = ""
+		a.streams.contentID = msg.ID
+		a.streams.contentType = msg.Type
 		a.streams.filterInput.SetValue("")
 		a.streams.list.SetItems(nil)
 		return a, tea.Batch(a.streams.spinner.Tick, a.streams.LoadStreams(msg))
@@ -168,6 +170,27 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.search = NewSearchModel(a.client, a.config)
 		return a, nil
 
+	case mpvLaunchedMsg:
+		if a.history != nil && msg.videoID != "" {
+			imdbID := history.ExtractIMDBID(msg.videoID)
+			if msg.videoType == "movie" {
+				if !a.history.IsMovieWatched(imdbID) {
+					a.history.ToggleMovie(imdbID)
+					_ = a.history.Save()
+				}
+			} else if msg.videoType == "series" {
+				season, episode := history.ParseEpisodeID(msg.videoID)
+				if season > 0 && !a.history.IsEpisodeWatched(imdbID, season, episode) {
+					a.history.ToggleEpisode(imdbID, season, episode)
+					_ = a.history.Save()
+				}
+			}
+			// Refresh detail view watched indicators
+			if a.detail.meta != nil && a.detail.viewingEpisodes {
+				a.detail.showEpisodesForSeason(a.detail.selectedSeason)
+			}
+		}
+
 	case addonsRefreshedMsg:
 		a.addons, _ = a.addons.Update(msg)
 		return a, nil
@@ -182,8 +205,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case ScreenAddons:
 		a.addons, cmd = a.addons.Update(msg)
 	case ScreenDetail:
-		// Don't pass esc to sub-model
 		if keyMsg, ok := msg.(tea.KeyMsg); ok && (keyMsg.String() == "esc" || keyMsg.String() == "escape") {
+			if a.detail.viewingEpisodes {
+				// Let detail model handle going back to season list
+				a.detail, cmd = a.detail.Update(msg)
+				return a, cmd
+			}
 			a.screen = a.prevScreen
 			return a, nil
 		}

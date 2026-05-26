@@ -276,6 +276,18 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 					_ = m.history.Save()
 					m.showEpisodesForSeason(m.selectedSeason)
 				}
+			} else if m.meta.Type == "series" && !m.viewingEpisodes {
+				if item, ok := m.list.SelectedItem().(seasonItem); ok {
+					var episodeNumbers []int
+					for _, v := range m.meta.Videos {
+						if v.Season == item.season {
+							episodeNumbers = append(episodeNumbers, v.Episode)
+						}
+					}
+					m.history.ToggleSeason(imdbID, item.season, episodeNumbers)
+					_ = m.history.Save()
+					m.showSeasons()
+				}
 			} else if m.meta.Type == "movie" {
 				m.history.ToggleMovie(imdbID)
 				_ = m.history.Save()

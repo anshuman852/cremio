@@ -17,6 +17,7 @@ import (
 type streamItem struct {
 	stream       stremio.Stream
 	episodeLabel string
+	videoID      string
 }
 
 func (s streamItem) Title() string {
@@ -50,6 +51,8 @@ type StreamsModel struct {
 	allItems      []streamItem
 	pendingVideos []stremio.Video
 	pendingType   string
+	contentID     string
+	contentType   string
 	filterActive  bool
 	loading       bool
 	err           error
@@ -64,7 +67,10 @@ type streamsLoadedMsg struct {
 type streamsErrorMsg struct {
 	err error
 }
-type mpvLaunchedMsg struct{}
+type mpvLaunchedMsg struct {
+	videoID   string
+	videoType string
+}
 type mpvErrorMsg struct {
 	err error
 }
@@ -133,7 +139,7 @@ func (m StreamsModel) LoadAllStreams(nav NavigateToAllStreamsMsg, filter Filter)
 				}
 				for _, s := range resp.Streams {
 					if filter.IsEmpty() || filter.Match(s.Name, s.Title) {
-						allStreams = append(allStreams, labeledStream{stream: s, label: label})
+						allStreams = append(allStreams, labeledStream{stream: s, label: label, videoID: video.ID})
 					}
 				}
 			}
@@ -147,8 +153,9 @@ func (m StreamsModel) LoadAllStreams(nav NavigateToAllStreamsMsg, filter Filter)
 }
 
 type labeledStream struct {
-	stream stremio.Stream
-	label  string
+	stream  stremio.Stream
+	label   string
+	videoID string
 }
 
 type allStreamsLoadedMsg struct {
@@ -189,7 +196,7 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 		m.loading = false
 		m.allItems = make([]streamItem, len(msg.streams))
 		for i, ls := range msg.streams {
-			m.allItems[i] = streamItem{stream: ls.stream, episodeLabel: ls.label}
+			m.allItems[i] = streamItem{stream: ls.stream, episodeLabel: ls.label, videoID: ls.videoID}
 		}
 		m.applyFilter()
 		return m, nil
@@ -246,12 +253,17 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 		case "enter":
 			if item, ok := m.list.SelectedItem().(streamItem); ok {
 				url := item.stream.PlayableURL()
+				videoID := item.videoID
+				contentType := m.contentType
+				if videoID == "" {
+					videoID = m.contentID
+				}
 				return m, func() tea.Msg {
 					err := player.PlayWithMPV(url)
 					if err != nil {
 						return mpvErrorMsg{err: err}
 					}
-					return mpvLaunchedMsg{}
+					return mpvLaunchedMsg{videoID: videoID, videoType: contentType}
 				}
 			}
 		}
