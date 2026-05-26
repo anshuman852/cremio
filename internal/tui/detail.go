@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -119,12 +120,17 @@ func (m *DetailModel) showSeasons() {
 
 func (m *DetailModel) showEpisodesForSeason(season int) {
 	imdbID := history.ExtractIMDBID(m.meta.ID)
-	var items []list.Item
+	var videos []stremio.Video
 	for _, v := range m.meta.Videos {
 		if v.Season == season {
-			watched := m.history != nil && m.history.IsEpisodeWatched(imdbID, v.Season, v.Episode)
-			items = append(items, videoItem{video: v, watched: watched})
+			videos = append(videos, v)
 		}
+	}
+	sort.Slice(videos, func(i, j int) bool { return videos[i].Episode < videos[j].Episode })
+	items := make([]list.Item, len(videos))
+	for i, v := range videos {
+		watched := m.history != nil && m.history.IsEpisodeWatched(imdbID, v.Season, v.Episode)
+		items[i] = videoItem{video: v, watched: watched}
 	}
 	m.list.Title = fmt.Sprintf("Season %d Episodes", season)
 	m.list.SetItems(items)
@@ -160,7 +166,7 @@ func (m DetailModel) LoadMeta(nav NavigateToDetailMsg) tea.Cmd {
 			}
 			// Skip addon error responses (e.g. AIOStreams error meta)
 			if strings.HasPrefix(resp.Meta.ID, "aiostreamserror") {
-				lastErr = fmt.Errorf("%s", resp.Meta.Description)
+				lastErr = errors.New(resp.Meta.Description)
 				continue
 			}
 			return metaLoadedMsg{meta: &resp.Meta}
