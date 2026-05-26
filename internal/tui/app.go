@@ -154,6 +154,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.streams.allItems = nil
 		a.streams.pendingVideos = msg.Videos
 		a.streams.pendingType = msg.Type
+		a.streams.contentID = ""
+		a.streams.contentType = msg.Type
 		a.streams.filterInput.SetValue("")
 		a.streams.filterActive = true
 		a.streams.list.SetItems(nil)

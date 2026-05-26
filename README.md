@@ -81,6 +81,50 @@ Cremio stores its configuration as a JSON file:
 
 The config file holds the list of installed addon base URLs. It is created automatically on first use.
 
+```json
+{
+  "addons": [
+    "https://example-addon.com/manifest.json"
+  ]
+}
+```
+
+## Watch History
+
+Cremio tracks watched movies and episodes in a local JSON file:
+
+- **Windows:** `%APPDATA%\cremio\history.json`
+- **Linux/macOS:** `~/.config/cremio/history.json`
+
+Episodes are automatically marked as watched when played via mpv. You can also manually toggle watched status with the `w` key — on individual episodes, whole seasons, or movies.
+
+The file uses a [Trakt](https://trakt.tv)-compatible structure, so it can be exported and imported directly via Trakt's `/sync/history` API:
+
+```json
+{
+  "movies": [
+    {
+      "watched_at": "2026-05-26T12:00:00Z",
+      "ids": { "imdb": "tt1234567" }
+    }
+  ],
+  "shows": [
+    {
+      "ids": { "imdb": "tt7654321" },
+      "seasons": [
+        {
+          "number": 1,
+          "episodes": [
+            { "number": 1, "watched_at": "2026-05-26T12:00:00Z" },
+            { "number": 2, "watched_at": "2026-05-26T12:30:00Z" }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
 ## Controls
 
 | Key        | Action                                      |
@@ -89,6 +133,8 @@ The config file holds the list of installed addon base URLs. It is created autom
 | `/`        | Focus the search input (Search tab)         |
 | `enter`    | Select item / submit input                  |
 | `esc`      | Go back / unfocus input                     |
+| `w`        | Toggle watched (episode, season, or movie)  |
+| `f`        | Fetch streams for all episodes (series)     |
 | `a`        | Add a new addon (Addons tab)                |
 | `d`        | Remove selected addon (Addons tab)          |
 | `q`       | Quit                                         |
@@ -100,6 +146,7 @@ The config file holds the list of installed addon base URLs. It is created autom
 main.go                  Entry point
 internal/
   config/config.go       Configuration loading, saving, addon management
+  history/history.go     Watch history tracking and Trakt-compatible export
   player/mpv.go          mpv process launcher
   stremio/
     client.go            HTTP client for the Stremio Addon Protocol

@@ -102,7 +102,11 @@ func ExtractIMDBID(id string) string {
 // e.g. "tt1234567:2:5" → (2, 5)
 // Returns (0, 0) if the ID is not an episode format.
 func ParseEpisodeID(id string) (season, episode int) {
-	_, err := fmt.Sscanf(id, "%*[^:]:%d:%d", &season, &episode)
+	parts := strings.SplitN(id, ":", 3)
+	if len(parts) != 3 {
+		return 0, 0
+	}
+	_, err := fmt.Sscanf(parts[1]+":"+parts[2], "%d:%d", &season, &episode)
 	if err != nil {
 		return 0, 0
 	}
@@ -223,13 +227,13 @@ func (h *WatchHistory) ToggleEpisode(imdbID string, season, episode int) bool {
 func (h *WatchHistory) ToggleSeason(imdbID string, season int, episodeNumbers []int) bool {
 	if h.IsSeasonWatched(imdbID, season, len(episodeNumbers)) {
 		// Unwatch: remove all episodes in this season
-		for _, s := range h.Shows {
-			if s.IDs.IMDB != imdbID {
+		for i := range h.Shows {
+			if h.Shows[i].IDs.IMDB != imdbID {
 				continue
 			}
-			for i, sn := range s.Seasons {
+			for j, sn := range h.Shows[i].Seasons {
 				if sn.Number == season {
-					s.Seasons = append(s.Seasons[:i], s.Seasons[i+1:]...)
+					h.Shows[i].Seasons = append(h.Shows[i].Seasons[:j], h.Shows[i].Seasons[j+1:]...)
 					break
 				}
 			}

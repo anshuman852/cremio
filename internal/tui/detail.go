@@ -362,7 +362,7 @@ func (m DetailModel) View() string {
 		sections = append(sections, HelpStyle.Render("enter: find streams • w: toggle watched • esc: back"))
 	} else if !m.viewingEpisodes {
 		sections = append(sections, m.list.View())
-		sections = append(sections, HelpStyle.Render("enter: view episodes \u2022 f: filter all episodes \u2022 esc: back"))
+		sections = append(sections, HelpStyle.Render("enter: view episodes \u2022 w: toggle watched \u2022 f: filter all episodes \u2022 esc: back"))
 	} else {
 		sections = append(sections, m.list.View())
 		sections = append(sections, HelpStyle.Render("enter: streams \u2022 w: toggle watched \u2022 f: filter season \u2022 esc: back to seasons"))
