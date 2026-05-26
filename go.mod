@@ -1,4 +1,4 @@
-module github.com/soakhan/cremio
+module github.com/itssoap/cremio
 
 go 1.25.1
 

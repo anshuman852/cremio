@@ -8,8 +8,8 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/soakhan/cremio/internal/config"
-	"github.com/soakhan/cremio/internal/stremio"
+	"github.com/itssoap/cremio/internal/config"
+	"github.com/itssoap/cremio/internal/stremio"
 )
 
 type addonItem struct {

@@ -5,8 +5,9 @@ import (
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/soakhan/cremio/internal/config"
-	"github.com/soakhan/cremio/internal/tui"
+	"github.com/itssoap/cremio/internal/config"
+	"github.com/itssoap/cremio/internal/history"
+	"github.com/itssoap/cremio/internal/tui"
 )
 
 func main() {
@@ -16,7 +17,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	app := tui.NewApp(cfg)
+	hist, err := history.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading watch history: %v\n", err)
+		os.Exit(1)
+	}
+
+	app := tui.NewApp(cfg, hist)
 	p := tea.NewProgram(app, tea.WithAltScreen())
 
 	if _, err := p.Run(); err != nil {

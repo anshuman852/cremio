@@ -10,19 +10,25 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/soakhan/cremio/internal/config"
-	"github.com/soakhan/cremio/internal/stremio"
+	"github.com/itssoap/cremio/internal/config"
+	"github.com/itssoap/cremio/internal/history"
+	"github.com/itssoap/cremio/internal/stremio"
 )
 
 type videoItem struct {
-	video stremio.Video
+	video   stremio.Video
+	watched bool
 }
 
 func (v videoItem) Title() string {
-	if v.video.Season > 0 {
-		return fmt.Sprintf("S%02dE%02d - %s", v.video.Season, v.video.Episode, v.video.Title)
+	prefix := ""
+	if v.watched {
+		prefix = "✓ "
 	}
-	return v.video.Title
+	if v.video.Season > 0 {
+		return fmt.Sprintf("%sS%02dE%02d - %s", prefix, v.video.Season, v.video.Episode, v.video.Title)
+	}
+	return prefix + v.video.Title
 }
 func (v videoItem) Description() string { return v.video.Overview }
 func (v videoItem) FilterValue() string { return v.video.Title }
@@ -30,9 +36,16 @@ func (v videoItem) FilterValue() string { return v.video.Title }
 type seasonItem struct {
 	season       int
 	episodeCount int
+	watched      bool
 }
 
-func (s seasonItem) Title() string       { return fmt.Sprintf("Season %d", s.season) }
+func (s seasonItem) Title() string {
+	prefix := ""
+	if s.watched {
+		prefix = "✓ "
+	}
+	return fmt.Sprintf("%sSeason %d", prefix, s.season)
+}
 func (s seasonItem) Description() string { return fmt.Sprintf("%d episodes", s.episodeCount) }
 func (s seasonItem) FilterValue() string { return fmt.Sprintf("Season %d", s.season) }
 
@@ -42,6 +55,7 @@ type DetailModel struct {
 	spinner         spinner.Model
 	client          *stremio.Client
 	config          *config.Config
+	history         *history.WatchHistory
 	loading         bool
 	err             error
 	width           int
@@ -83,6 +97,7 @@ func (m *DetailModel) SetSize(w, h int) {
 }
 
 func (m *DetailModel) showSeasons() {
+	imdbID := history.ExtractIMDBID(m.meta.ID)
 	seasonMap := make(map[int]int)
 	for _, v := range m.meta.Videos {
 		seasonMap[v.Season]++
@@ -95,17 +110,20 @@ func (m *DetailModel) showSeasons() {
 
 	items := make([]list.Item, len(seasons))
 	for i, s := range seasons {
-		items[i] = seasonItem{season: s, episodeCount: seasonMap[s]}
+		watched := m.history != nil && m.history.IsSeasonWatched(imdbID, s, seasonMap[s])
+		items[i] = seasonItem{season: s, episodeCount: seasonMap[s], watched: watched}
 	}
 	m.list.Title = "Seasons"
 	m.list.SetItems(items)
 }
 
 func (m *DetailModel) showEpisodesForSeason(season int) {
+	imdbID := history.ExtractIMDBID(m.meta.ID)
 	var items []list.Item
 	for _, v := range m.meta.Videos {
 		if v.Season == season {
-			items = append(items, videoItem{video: v})
+			watched := m.history != nil && m.history.IsEpisodeWatched(imdbID, v.Season, v.Episode)
+			items = append(items, videoItem{video: v, watched: watched})
 		}
 	}
 	m.list.Title = fmt.Sprintf("Season %d Episodes", season)
@@ -247,6 +265,21 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 					}
 				}
 			}
+		case "w":
+			if m.meta == nil || m.history == nil {
+				return m, nil
+			}
+			imdbID := history.ExtractIMDBID(m.meta.ID)
+			if m.viewingEpisodes {
+				if item, ok := m.list.SelectedItem().(videoItem); ok {
+					m.history.ToggleEpisode(imdbID, item.video.Season, item.video.Episode)
+					_ = m.history.Save()
+					m.showEpisodesForSeason(m.selectedSeason)
+				}
+			} else if m.meta.Type == "movie" {
+				m.history.ToggleMovie(imdbID)
+				_ = m.history.Save()
+			}
 		}
 	}
 
@@ -260,7 +293,7 @@ func (m DetailModel) View() string {
 		return m.spinner.View() + " Loading details..."
 	}
 	if m.err != nil {
-		return ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err))
+		return ErrorStyle.Render(fmt.Sprintf("Error: %v", m.err)) + "\n" + HelpStyle.Render("esc: back • tab: switch tab")
 	}
 	if m.meta == nil {
 		return ""
@@ -314,13 +347,13 @@ func (m DetailModel) View() string {
 
 	// For movies, show prompt to play
 	if m.meta.Type == "movie" || len(m.meta.Videos) == 0 {
-		sections = append(sections, HelpStyle.Render("enter: find streams • esc: back"))
+		sections = append(sections, HelpStyle.Render("enter: find streams • w: toggle watched • esc: back"))
 	} else if !m.viewingEpisodes {
 		sections = append(sections, m.list.View())
 		sections = append(sections, HelpStyle.Render("enter: view episodes \u2022 f: filter all episodes \u2022 esc: back"))
 	} else {
 		sections = append(sections, m.list.View())
-		sections = append(sections, HelpStyle.Render("enter: streams \u2022 f: filter season \u2022 esc: back to seasons"))
+		sections = append(sections, HelpStyle.Render("enter: streams \u2022 w: toggle watched \u2022 f: filter season \u2022 esc: back to seasons"))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)

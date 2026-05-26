@@ -3,8 +3,9 @@ package tui
 import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/soakhan/cremio/internal/config"
-	"github.com/soakhan/cremio/internal/stremio"
+	"github.com/itssoap/cremio/internal/config"
+	"github.com/itssoap/cremio/internal/history"
+	"github.com/itssoap/cremio/internal/stremio"
 )
 
 type Screen int
@@ -23,8 +24,9 @@ type App struct {
 	width      int
 	height     int
 
-	client *stremio.Client
-	config *config.Config
+	client  *stremio.Client
+	config  *config.Config
+	history *history.WatchHistory
 
 	home    HomeModel
 	search  SearchModel
@@ -33,16 +35,19 @@ type App struct {
 	streams StreamsModel
 }
 
-func NewApp(cfg *config.Config) App {
+func NewApp(cfg *config.Config, hist *history.WatchHistory) App {
 	client := stremio.NewClient()
+	detail := NewDetailModel(client, cfg)
+	detail.history = hist
 	return App{
 		screen:  ScreenHome,
 		client:  client,
 		config:  cfg,
+		history: hist,
 		home:    NewHomeModel(client, cfg),
 		search:  NewSearchModel(client, cfg),
 		addons:  NewAddonsModel(client, cfg),
-		detail:  NewDetailModel(client, cfg),
+		detail:  detail,
 		streams: NewStreamsModel(client, cfg),
 	}
 }
@@ -94,6 +99,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "tab":
 			if a.screen == ScreenDetail || a.screen == ScreenStreams {
+				// Allow tab to escape back from error states
+				if (a.screen == ScreenDetail && a.detail.err != nil) || (a.screen == ScreenStreams && a.streams.err != nil) {
+					a.screen = a.prevScreen
+					return a, nil
+				}
 				break
 			}
 			if a.screen == ScreenAddons && a.addons.inputActive {
