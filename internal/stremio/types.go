@@ -110,11 +110,7 @@ func (s Stream) PlayableURL() string {
 		return s.URL
 	}
 	if s.InfoHash != "" {
-		url := "magnet:?xt=urn:btih:" + s.InfoHash
-		if s.FileIdx != nil {
-			// mpv can't select file index from magnet, but we pass it anyway
-		}
-		return url
+		return "magnet:?xt=urn:btih:" + s.InfoHash
 	}
 	if s.YtID != "" {
 		return "https://www.youtube.com/watch?v=" + s.YtID

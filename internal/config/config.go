@@ -40,7 +40,6 @@ func Load() (*Config, error) {
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
-	cfg.path = path
 	return cfg, nil
 }
 
