@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -55,6 +56,8 @@ type StreamsModel struct {
 	contentType   string
 	filterActive  bool
 	loading       bool
+	launching     bool
+	launched      bool
 	err           error
 	playErr       error
 	width         int
@@ -74,6 +77,7 @@ type mpvLaunchedMsg struct {
 type mpvErrorMsg struct {
 	err error
 }
+type clearLaunchedMsg struct{}
 
 func NewStreamsModel(client *stremio.Client, cfg *config.Config) StreamsModel {
 	l := list.New(nil, list.NewDefaultDelegate(), 0, 0)
@@ -102,7 +106,7 @@ func (m *StreamsModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	m.filterInput.Width = w - 4
-	m.list.SetSize(w, h-4)
+	m.list.SetSize(w, h-7) // account for filter input (2 lines), help (1 line), spacing
 }
 
 func (m StreamsModel) LoadStreams(nav NavigateToStreamsMsg) tea.Cmd {
@@ -207,10 +211,20 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 		return m, nil
 
 	case mpvLaunchedMsg:
-		return m, nil
+		m.launching = false
+		m.launched = true
+		return m, tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
+			return clearLaunchedMsg{}
+		})
 
 	case mpvErrorMsg:
+		m.launching = false
+		m.launched = false
 		m.playErr = msg.err
+		return m, nil
+
+	case clearLaunchedMsg:
+		m.launched = false
 		return m, nil
 
 	case tea.KeyMsg:
@@ -251,7 +265,12 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 			m.applyFilter()
 			return m, nil
 		case "enter":
+			if m.launching {
+				return m, nil
+			}
 			if item, ok := m.list.SelectedItem().(streamItem); ok {
+				m.launching = true
+				m.playErr = nil
 				url := item.stream.PlayableURL()
 				videoID := item.videoID
 				contentType := m.contentType
@@ -293,6 +312,11 @@ func (m StreamsModel) View() string {
 	}
 
 	view := m.list.View()
+	if m.launching {
+		view += "\n" + SubtitleStyle.Render("▶ Launching mpv...")
+	} else if m.launched {
+		view += "\n" + SubtitleStyle.Render("▶ Launched")
+	}
 	if m.playErr != nil {
 		view += "\n" + ErrorStyle.Render(fmt.Sprintf("MPV error: %v", m.playErr))
 	}

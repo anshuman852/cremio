@@ -61,7 +61,7 @@ func (m *SearchModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	m.input.Width = w - 4
-	m.results.SetSize(w, h-4)
+	m.results.SetSize(w, h-7) // account for input (2 lines), help (1 line), spacing
 }
 
 func (m SearchModel) search(query string) tea.Cmd {

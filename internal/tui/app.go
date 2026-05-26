@@ -192,6 +192,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.detail.showEpisodesForSeason(a.detail.selectedSeason)
 			}
 		}
+		// Pass to streams for launch status update
+		var cmd tea.Cmd
+		a.streams, cmd = a.streams.Update(msg)
+		return a, cmd
 
 	case addonsRefreshedMsg:
 		a.addons, _ = a.addons.Update(msg)

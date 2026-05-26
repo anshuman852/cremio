@@ -174,6 +174,16 @@ winres/
 
 Please avoid introducing new dependencies unless strictly necessary. Keep the codebase simple and the TUI responsive.
 
+## FAQ/Known issues
+
+Q. Search is broken? I see results showing in Stremio, but not on this app.
+
+A. Please add the Cinemeta Add-on. Some addons lack Search functionality on their catalogues by-default.
+
+Q. Sometimes the Search results appear blank, but it seems like I am able to navigate across them.
+
+A. Please restart the app. This issue occurs very seldomly.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
