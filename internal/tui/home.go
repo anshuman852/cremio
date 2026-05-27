@@ -45,6 +45,10 @@ type catalogLoadedMsg struct {
 	items []catalogItem
 }
 
+type catalogErrorMsg struct {
+	err error
+}
+
 func NewHomeModel(client *stremio.Client, cfg *config.Config) HomeModel {
 	l := list.New(nil, list.NewDefaultDelegate(), 0, 0)
 	l.Title = "Catalog"
@@ -107,9 +111,14 @@ func (m HomeModel) loadCatalogs() tea.Cmd {
 				}
 			}
 		}
+		if len(allItems) == 0 && len(m.config.Addons) > 0 {
+			return catalogErrorMsg{err: fmt.Errorf("no catalog items loaded — check that your addons are reachable")}
+		}
 		return catalogLoadedMsg{items: allItems}
 	}
 }
+
+// ── Update ──────────────────────────────────────────────────────────────────
 
 func (m HomeModel) Update(msg tea.Msg) (HomeModel, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -119,6 +128,11 @@ func (m HomeModel) Update(msg tea.Msg) (HomeModel, tea.Cmd) {
 			m.spinner, cmd = m.spinner.Update(msg)
 			return m, cmd
 		}
+		return m, nil
+
+	case catalogErrorMsg:
+		m.loading = false
+		m.err = msg.err
 		return m, nil
 
 	case catalogLoadedMsg:

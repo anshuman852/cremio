@@ -1,5 +1,7 @@
 package stremio
 
+import "fmt"
+
 type Manifest struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -12,9 +14,9 @@ type Manifest struct {
 }
 
 type Catalog struct {
-	Type  string       `json:"type"`
-	ID    string       `json:"id"`
-	Name  string       `json:"name"`
+	Type  string         `json:"type"`
+	ID    string         `json:"id"`
+	Name  string         `json:"name"`
 	Extra []CatalogExtra `json:"extra,omitempty"`
 }
 
@@ -83,21 +85,21 @@ type StreamResponse struct {
 }
 
 type Stream struct {
-	URL         string       `json:"url,omitempty"`
-	YtID        string       `json:"ytId,omitempty"`
-	InfoHash    string       `json:"infoHash,omitempty"`
-	FileIdx     *int         `json:"fileIdx,omitempty"`
-	ExternalURL string       `json:"externalUrl,omitempty"`
-	Name        string       `json:"name,omitempty"`
-	Title       string       `json:"title,omitempty"`
-	Description string       `json:"description,omitempty"`
+	URL           string               `json:"url,omitempty"`
+	YtID          string               `json:"ytId,omitempty"`
+	InfoHash      string               `json:"infoHash,omitempty"`
+	FileIdx       *int                 `json:"fileIdx,omitempty"`
+	ExternalURL   string               `json:"externalUrl,omitempty"`
+	Name          string               `json:"name,omitempty"`
+	Title         string               `json:"title,omitempty"`
+	Description   string               `json:"description,omitempty"`
 	BehaviorHints *StreamBehaviorHints `json:"behaviorHints,omitempty"`
 }
 
 type StreamBehaviorHints struct {
-	NotWebReady      bool   `json:"notWebReady,omitempty"`
-	BingeGroup       string `json:"bingeGroup,omitempty"`
-	ProxyHeaders     *ProxyHeaders `json:"proxyHeaders,omitempty"`
+	NotWebReady  bool          `json:"notWebReady,omitempty"`
+	BingeGroup   string        `json:"bingeGroup,omitempty"`
+	ProxyHeaders *ProxyHeaders `json:"proxyHeaders,omitempty"`
 }
 
 type ProxyHeaders struct {
@@ -110,7 +112,11 @@ func (s Stream) PlayableURL() string {
 		return s.URL
 	}
 	if s.InfoHash != "" {
-		return "magnet:?xt=urn:btih:" + s.InfoHash
+		magnet := "magnet:?xt=urn:btih:" + s.InfoHash
+		if s.FileIdx != nil {
+			magnet += fmt.Sprintf("&so=%d", *s.FileIdx)
+		}
+		return magnet
 	}
 	if s.YtID != "" {
 		return "https://www.youtube.com/watch?v=" + s.YtID

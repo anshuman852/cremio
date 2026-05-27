@@ -96,7 +96,7 @@ Cremio tracks watched movies and episodes in a local JSON file:
 - **Windows:** `%APPDATA%\cremio\history.json`
 - **Linux/macOS:** `~/.config/cremio/history.json`
 
-Episodes are automatically marked as watched when played via mpv. You can also manually toggle watched status with the `w` key — on individual episodes, whole seasons, or movies.
+Episodes are automatically marked as watched when played via mpv. You can also manually toggle watched status with the `w` key - on individual episodes, whole seasons, or movies.
 
 The file uses a [Trakt](https://trakt.tv)-compatible structure, so it can be exported and imported directly via Trakt's `/sync/history` API:
 

@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
+
+	"github.com/itssoap/cremio/internal/appdir"
 )
 
 // WatchHistory uses a Trakt-compatible JSON structure so it can be
@@ -42,18 +43,11 @@ type TraktIDs struct {
 	IMDB string `json:"imdb"`
 }
 
-func historyDir() string {
-	if runtime.GOOS == "windows" {
-		if appData := os.Getenv("APPDATA"); appData != "" {
-			return filepath.Join(appData, "cremio")
-		}
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "cremio")
-}
-
 func Load() (*WatchHistory, error) {
-	dir := historyDir()
+	dir, err := appdir.Dir()
+	if err != nil {
+		return nil, err
+	}
 	path := filepath.Join(dir, "history.json")
 
 	h := &WatchHistory{path: path}
@@ -225,6 +219,9 @@ func (h *WatchHistory) ToggleEpisode(imdbID string, season, episode int) bool {
 // if the season is already fully watched. episodeNumbers should list all
 // episode numbers in the season.
 func (h *WatchHistory) ToggleSeason(imdbID string, season int, episodeNumbers []int) bool {
+	if len(episodeNumbers) == 0 {
+		return false
+	}
 	if h.IsSeasonWatched(imdbID, season, len(episodeNumbers)) {
 		// Unwatch: remove all episodes in this season
 		for i := range h.Shows {

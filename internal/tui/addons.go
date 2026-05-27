@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -38,6 +39,7 @@ type AddonsModel struct {
 	config      *config.Config
 	inputActive bool
 	err         error
+	saveErr     error
 	width       int
 	height      int
 }
@@ -117,6 +119,9 @@ func (m AddonsModel) loadManifests() tea.Cmd {
 
 func (m AddonsModel) validateAndAdd(url string) tea.Cmd {
 	return func() tea.Msg {
+		if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+			return addonValidateErrorMsg{err: fmt.Errorf("addon URL must start with http:// or https://")}
+		}
 		ctx := context.Background()
 		manifest, err := m.client.FetchManifest(ctx, url)
 		if err != nil {
@@ -138,7 +143,11 @@ func (m AddonsModel) Update(msg tea.Msg) (AddonsModel, tea.Cmd) {
 
 	case addonManifestLoadedMsg:
 		m.config.AddAddon(msg.url)
-		_ = m.config.Save()
+		if err := m.config.Save(); err != nil {
+			m.saveErr = err
+		} else {
+			m.saveErr = nil
+		}
 		m.err = nil
 		m.refreshList()
 		return m, tea.Batch(m.loadManifests(), func() tea.Msg { return AddonAddedMsg{} })
@@ -174,7 +183,11 @@ func (m AddonsModel) Update(msg tea.Msg) (AddonsModel, tea.Cmd) {
 			case "d", "delete":
 				if item, ok := m.list.SelectedItem().(addonItem); ok {
 					m.config.RemoveAddon(item.url)
-					_ = m.config.Save()
+					if err := m.config.Save(); err != nil {
+						m.saveErr = err
+					} else {
+						m.saveErr = nil
+					}
 					m.refreshList()
 					return m, func() tea.Msg { return AddonRemovedMsg{} }
 				}
@@ -205,6 +218,9 @@ func (m AddonsModel) View() string {
 		sections = append(sections, m.list.View())
 		if m.err != nil {
 			sections = append(sections, ErrorStyle.Render(m.err.Error()))
+		}
+		if m.saveErr != nil {
+			sections = append(sections, ErrorStyle.Render(fmt.Sprintf("⚠ Could not save config: %v", m.saveErr)))
 		}
 		sections = append(sections, HelpStyle.Render("a: add addon • d: remove selected • tab: switch tab"))
 	}

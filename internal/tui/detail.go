@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -59,6 +60,7 @@ type DetailModel struct {
 	history         *history.WatchHistory
 	loading         bool
 	err             error
+	saveErr         error
 	width           int
 	height          int
 	contentType     string
@@ -279,7 +281,11 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 			if m.viewingEpisodes {
 				if item, ok := m.list.SelectedItem().(videoItem); ok {
 					m.history.ToggleEpisode(imdbID, item.video.Season, item.video.Episode)
-					_ = m.history.Save()
+					if err := m.history.Save(); err != nil {
+						m.saveErr = err
+					} else {
+						m.saveErr = nil
+					}
 					m.showEpisodesForSeason(m.selectedSeason)
 				}
 			} else if m.meta.Type == "series" && !m.viewingEpisodes {
@@ -291,12 +297,20 @@ func (m DetailModel) Update(msg tea.Msg) (DetailModel, tea.Cmd) {
 						}
 					}
 					m.history.ToggleSeason(imdbID, item.season, episodeNumbers)
-					_ = m.history.Save()
+					if err := m.history.Save(); err != nil {
+						m.saveErr = err
+					} else {
+						m.saveErr = nil
+					}
 					m.showSeasons()
 				}
 			} else if m.meta.Type == "movie" {
 				m.history.ToggleMovie(imdbID)
-				_ = m.history.Save()
+				if err := m.history.Save(); err != nil {
+					m.saveErr = err
+				} else {
+					m.saveErr = nil
+				}
 			}
 		}
 	}
@@ -354,8 +368,9 @@ func (m DetailModel) View() string {
 	// Description
 	if m.meta.Description != "" {
 		desc := m.meta.Description
-		if len(desc) > 300 {
-			desc = desc[:300] + "..."
+		if utf8.RuneCountInString(desc) > 300 {
+			runes := []rune(desc)
+			desc = string(runes[:300]) + "..."
 		}
 		sections = append(sections, "")
 		sections = append(sections, DetailValueStyle.Render(desc))
@@ -363,15 +378,20 @@ func (m DetailModel) View() string {
 
 	sections = append(sections, "")
 
+	// Persistent save-error banner
+	if m.saveErr != nil {
+		sections = append(sections, ErrorStyle.Render(fmt.Sprintf("⚠ Could not save history: %v", m.saveErr)))
+	}
+
 	// For movies, show prompt to play
 	if m.meta.Type == "movie" || len(m.meta.Videos) == 0 {
-		sections = append(sections, HelpStyle.Render("enter: find streams • w: toggle watched • esc: back"))
+		sections = append(sections, HelpStyle.Render("enter: find streams • w: toggle watched • esc: back • q: quit"))
 	} else if !m.viewingEpisodes {
 		sections = append(sections, m.list.View())
-		sections = append(sections, HelpStyle.Render("enter: view episodes \u2022 w: toggle watched \u2022 f: filter all episodes \u2022 esc: back"))
+		sections = append(sections, HelpStyle.Render("enter: view episodes • w: toggle watched • f: filter all episodes • esc: back • q: quit"))
 	} else {
 		sections = append(sections, m.list.View())
-		sections = append(sections, HelpStyle.Render("enter: streams \u2022 w: toggle watched \u2022 f: filter season \u2022 esc: back to seasons"))
+		sections = append(sections, HelpStyle.Render("enter: streams • w: toggle watched • f: filter season • esc: back to seasons • q: quit"))
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)

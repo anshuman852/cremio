@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -93,5 +94,5 @@ func (c *Client) getJSON(ctx context.Context, u string, target any) error {
 		return fmt.Errorf("HTTP %d from %s", resp.StatusCode, u)
 	}
 
-	return json.NewDecoder(resp.Body).Decode(target)
+	return json.NewDecoder(io.LimitReader(resp.Body, 10<<20)).Decode(target)
 }

@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
+
+	"github.com/itssoap/cremio/internal/appdir"
 )
 
 type Config struct {
@@ -12,18 +13,11 @@ type Config struct {
 	path   string
 }
 
-func configDir() string {
-	if runtime.GOOS == "windows" {
-		if appData := os.Getenv("APPDATA"); appData != "" {
-			return filepath.Join(appData, "cremio")
-		}
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, ".config", "cremio")
-}
-
 func Load() (*Config, error) {
-	dir := configDir()
+	dir, err := appdir.Dir()
+	if err != nil {
+		return nil, err
+	}
 	path := filepath.Join(dir, "config.json")
 
 	cfg := &Config{path: path}

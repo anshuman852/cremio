@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -36,8 +37,8 @@ func (s streamItem) Description() string {
 		return s.stream.Title
 	}
 	url := s.stream.PlayableURL()
-	if len(url) > 60 {
-		return url[:60] + "..."
+	if utf8.RuneCountInString(url) > 60 {
+		return string([]rune(url)[:60]) + "..."
 	}
 	return url
 }
@@ -58,6 +59,7 @@ type StreamsModel struct {
 	loading       bool
 	launching     bool
 	launched      bool
+	launchSeq     int
 	err           error
 	playErr       error
 	width         int
@@ -77,7 +79,7 @@ type mpvLaunchedMsg struct {
 type mpvErrorMsg struct {
 	err error
 }
-type clearLaunchedMsg struct{}
+type clearLaunchedMsg struct{ seq int }
 
 func NewStreamsModel(client *stremio.Client, cfg *config.Config) StreamsModel {
 	l := list.New(nil, list.NewDefaultDelegate(), 0, 0)
@@ -213,8 +215,10 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 	case mpvLaunchedMsg:
 		m.launching = false
 		m.launched = true
+		m.launchSeq++
+		seq := m.launchSeq
 		return m, tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
-			return clearLaunchedMsg{}
+			return clearLaunchedMsg{seq: seq}
 		})
 
 	case mpvErrorMsg:
@@ -224,7 +228,9 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 		return m, nil
 
 	case clearLaunchedMsg:
-		m.launched = false
+		if msg.seq == m.launchSeq {
+			m.launched = false
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -307,7 +313,7 @@ func (m StreamsModel) View() string {
 	// If waiting for filter input in batch mode, show hint
 	if len(m.pendingVideos) > 0 && len(m.allItems) == 0 {
 		sections = append(sections, HelpStyle.Render("Type a filter and press enter to search all episodes"))
-		sections = append(sections, HelpStyle.Render("/ filter • esc: back"))
+		sections = append(sections, HelpStyle.Render("/ filter • esc: back • q: quit"))
 		return lipgloss.JoinVertical(lipgloss.Left, sections...)
 	}
 
@@ -321,6 +327,6 @@ func (m StreamsModel) View() string {
 		view += "\n" + ErrorStyle.Render(fmt.Sprintf("MPV error: %v", m.playErr))
 	}
 	sections = append(sections, view)
-	sections = append(sections, HelpStyle.Render("/ filter • c clear • enter: play • esc: back"))
+	sections = append(sections, HelpStyle.Render("/ filter • c clear • enter: play • esc: back • q: quit"))
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
