@@ -184,6 +184,10 @@ Q. Sometimes the Search results appear blank, but it seems like I am able to nav
 
 A. Please restart the app. This issue occurs very seldomly.
 
+Q. It shows "▶ Launched", but I don't see the mpv window yet?
+
+A. mpv takes its own sweet time to fetch the metadata and start the stream. Cremio triggers mpv as an independent process, so that killing cremio won't kill your stream.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
