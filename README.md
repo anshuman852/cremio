@@ -174,6 +174,27 @@ winres/
 
 Please avoid introducing new dependencies unless strictly necessary. Keep the codebase simple and the TUI responsive.
 
+### Where to make changes
+
+Use the table below to find the right file for what you want to improve:
+
+| What you want to change | File(s) |
+|-------------------------|---------|
+| **Home tab** — catalog browsing, how items are loaded or displayed | `internal/tui/home.go` |
+| **Search tab** — search input, result deduplication, client-side filtering | `internal/tui/search.go` |
+| **Addons tab** — add/remove addons, URL validation, manifest display | `internal/tui/addons.go` |
+| **Detail screen** — movie/series info layout, episode/season list, watched toggle | `internal/tui/detail.go` |
+| **Streams screen** — stream list, filter, info panel, mpv launch, batch mode | `internal/tui/streams.go` |
+| **Screen routing & global keys** — tab switching, ESC behaviour, app-level messages | `internal/tui/app.go` |
+| **Colours, borders, text styles** | `internal/tui/styles.go` |
+| **Stremio addon protocol** — HTTP client, endpoint logic | `internal/stremio/client.go` |
+| **Stremio types** — manifest, catalog, meta, stream structs | `internal/stremio/types.go` |
+| **Watch history** — toggle watched, Trakt-compatible JSON structure | `internal/history/history.go` |
+| **Config** — addon list persistence, config file path | `internal/config/config.go` |
+| **App data directory** — where config & history are stored | `internal/appdir/appdir.go` |
+| **mpv integration** — launch flags, extra arguments | `internal/player/mpv.go` |
+| **Windows executable icon / version metadata** | `winres/winres.json` |
+
 ## FAQ/Known issues
 
 Q. Search is broken? I see results showing in Stremio, but not on this app.
