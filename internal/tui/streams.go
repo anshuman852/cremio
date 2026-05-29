@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -56,6 +57,7 @@ type StreamsModel struct {
 	contentID     string
 	contentType   string
 	filterActive  bool
+	infoMode      bool
 	loading       bool
 	launching     bool
 	launched      bool
@@ -108,7 +110,18 @@ func (m *StreamsModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 	m.filterInput.Width = w - 4
-	m.list.SetSize(w, h-7) // account for filter input (2 lines), help (1 line), spacing
+	m.updateListSize()
+}
+
+func (m *StreamsModel) updateListSize() {
+	listH := m.height - 7 // filter input (2) + help (1) + spacing
+	if m.infoMode {
+		listH -= 6 // info panel: 4 content lines + 2 border rows
+	}
+	if listH < 3 {
+		listH = 3
+	}
+	m.list.SetSize(m.width, listH)
 }
 
 func (m StreamsModel) LoadStreams(nav NavigateToStreamsMsg) tea.Cmd {
@@ -266,6 +279,10 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 		case "/":
 			m.filterActive = true
 			return m, m.filterInput.Focus()
+		case "i":
+			m.infoMode = !m.infoMode
+			m.updateListSize()
+			return m, nil
 		case "c":
 			m.filterInput.SetValue("")
 			m.applyFilter()
@@ -299,6 +316,53 @@ func (m StreamsModel) Update(msg tea.Msg) (StreamsModel, tea.Cmd) {
 	return m, cmd
 }
 
+func (m StreamsModel) infoPanel() string {
+	item, ok := m.list.SelectedItem().(streamItem)
+	if !ok {
+		return InfoPanelStyle.Width(m.width - 4).Render(
+			SubtitleStyle.Render("No stream selected"),
+		)
+	}
+	s := item.stream
+
+	var rows []string
+
+	// Addon name — first line of stream.Name
+	if s.Name != "" {
+		addonName := strings.SplitN(s.Name, "\n", 2)[0]
+		rows = append(rows, DetailLabelStyle.Render("Addon:   ")+DetailValueStyle.Render(strings.TrimSpace(addonName)))
+	}
+
+	// Details (size / seeders / language) — stream.Title
+	if s.Title != "" {
+		rows = append(rows, DetailLabelStyle.Render("Details: ")+DetailValueStyle.Render(strings.TrimSpace(s.Title)))
+	}
+
+	// Extra description
+	if s.Description != "" {
+		rows = append(rows, DetailLabelStyle.Render("Info:    ")+DetailValueStyle.Render(strings.TrimSpace(s.Description)))
+	}
+
+	// Stream type
+	streamType := "Unknown"
+	switch {
+	case s.URL != "":
+		streamType = "HTTP"
+	case s.InfoHash != "":
+		streamType = "Torrent"
+		if s.FileIdx != nil {
+			streamType += fmt.Sprintf(" (file #%d)", *s.FileIdx)
+		}
+	case s.YtID != "":
+		streamType = "YouTube"
+	case s.ExternalURL != "":
+		streamType = "External"
+	}
+	rows = append(rows, DetailLabelStyle.Render("Type:    ")+DetailValueStyle.Render(streamType))
+
+	return InfoPanelStyle.Width(m.width - 4).Render(strings.Join(rows, "\n"))
+}
+
 func (m StreamsModel) View() string {
 	if m.loading {
 		return m.spinner.View() + " Loading streams..."
@@ -313,7 +377,7 @@ func (m StreamsModel) View() string {
 	// If waiting for filter input in batch mode, show hint
 	if len(m.pendingVideos) > 0 && len(m.allItems) == 0 {
 		sections = append(sections, HelpStyle.Render("Type a filter and press enter to search all episodes"))
-		sections = append(sections, HelpStyle.Render("/ filter • esc: back • q: quit"))
+		sections = append(sections, HelpStyle.Render("/ filter • i: info • esc: back • q: quit"))
 		return lipgloss.JoinVertical(lipgloss.Left, sections...)
 	}
 
@@ -327,6 +391,9 @@ func (m StreamsModel) View() string {
 		view += "\n" + ErrorStyle.Render(fmt.Sprintf("MPV error: %v", m.playErr))
 	}
 	sections = append(sections, view)
-	sections = append(sections, HelpStyle.Render("/ filter • c clear • enter: play • esc: back • q: quit"))
+	if m.infoMode {
+		sections = append(sections, m.infoPanel())
+	}
+	sections = append(sections, HelpStyle.Render("/ filter • c clear • i: info • enter: play • esc: back • q: quit"))
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
