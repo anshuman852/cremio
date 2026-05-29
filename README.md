@@ -4,7 +4,7 @@
 
 A functional way to access Stremio. Cremio is a TUI client built in Go with [Bubbletea](https://github.com/charmbracelet/bubbletea) that talks to Stremio addons, lets you browse catalogs, search for movies and series, pick episodes, and fire streams straight into mpv. No browser, no Electron, no nonsense (_I really didn't want a UI_)
 
-<img width="640" height="385" alt="usage" src="https://github.com/user-attachments/assets/7d8c0eba-7797-4425-97ab-ce8d20cd0555" />
+<img width="640" alt="showcase" src="https://github.com/user-attachments/assets/5161ab73-8b8c-4dad-a3d0-88c49e61f85f" />
 
 
 `Disclaimer: This tool neither allows nor encourages streaming and distribution of pirated media. The tool reflects a Proof-of-concept of a Stremio client without any Graphical interface, and the usage in all aspects is subject to the Users' liability and not the tools'.`
@@ -180,19 +180,19 @@ Use the table below to find the right file for what you want to improve:
 
 | What you want to change | File(s) |
 |-------------------------|---------|
-| **Home tab** — catalog browsing, how items are loaded or displayed | `internal/tui/home.go` |
-| **Search tab** — search input, result deduplication, client-side filtering | `internal/tui/search.go` |
-| **Addons tab** — add/remove addons, URL validation, manifest display | `internal/tui/addons.go` |
-| **Detail screen** — movie/series info layout, episode/season list, watched toggle | `internal/tui/detail.go` |
-| **Streams screen** — stream list, filter, info panel, mpv launch, batch mode | `internal/tui/streams.go` |
-| **Screen routing & global keys** — tab switching, ESC behaviour, app-level messages | `internal/tui/app.go` |
+| **Home tab** - catalog browsing, how items are loaded or displayed | `internal/tui/home.go` |
+| **Search tab** - search input, result deduplication, client-side filtering | `internal/tui/search.go` |
+| **Addons tab** - add/remove addons, URL validation, manifest display | `internal/tui/addons.go` |
+| **Detail screen** - movie/series info layout, episode/season list, watched toggle | `internal/tui/detail.go` |
+| **Streams screen** - stream list, filter, info panel, mpv launch, batch mode | `internal/tui/streams.go` |
+| **Screen routing & global keys** - tab switching, ESC behaviour, app-level messages | `internal/tui/app.go` |
 | **Colours, borders, text styles** | `internal/tui/styles.go` |
-| **Stremio addon protocol** — HTTP client, endpoint logic | `internal/stremio/client.go` |
-| **Stremio types** — manifest, catalog, meta, stream structs | `internal/stremio/types.go` |
-| **Watch history** — toggle watched, Trakt-compatible JSON structure | `internal/history/history.go` |
-| **Config** — addon list persistence, config file path | `internal/config/config.go` |
-| **App data directory** — where config & history are stored | `internal/appdir/appdir.go` |
-| **mpv integration** — launch flags, extra arguments | `internal/player/mpv.go` |
+| **Stremio addon protocol** - HTTP client, endpoint logic | `internal/stremio/client.go` |
+| **Stremio types** - manifest, catalog, meta, stream structs | `internal/stremio/types.go` |
+| **Watch history** - toggle watched, Trakt-compatible JSON structure | `internal/history/history.go` |
+| **Config** - addon list persistence, config file path | `internal/config/config.go` |
+| **App data directory** - where config & history are stored | `internal/appdir/appdir.go` |
+| **mpv integration** - launch flags, extra arguments | `internal/player/mpv.go` |
 | **Windows executable icon / version metadata** | `winres/winres.json` |
 
 ## FAQ/Known issues
