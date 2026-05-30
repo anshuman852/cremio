@@ -43,7 +43,7 @@ Both scripts download the latest binary, install it to a local bin directory, an
 - **Go 1.25 or later** (only needed to build from source)
 - **go-winres** (optional, only needed to embed a custom icon on Windows builds)
 
-Pre-built Windows binaries are available on the [releases page](https://github.com/itssoap/cremio/releases). Use the [Quick Install](#quick-install-windows) command above for the easiest setup.
+Pre-built Windows binaries are available on the [releases page](https://github.com/itssoap/cremio/releases). Use the [Quick Install](#quick-install) command above for the easiest setup.
 
 ## Development Setup
 

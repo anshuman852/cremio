@@ -139,7 +139,8 @@ function Install-Cremio {
         Write-Step "Checking PATH..."
 
         $currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-        if ($currentUserPath -notlike "*$InstallDir*") {
+        $pathEntries = if ($currentUserPath) { $currentUserPath -split ';' } else { @() }
+        if ($pathEntries -notcontains $InstallDir) {
             Write-Info "Adding $InstallDir to user PATH"
             $newPath = "$currentUserPath;$InstallDir".TrimStart(';')
 

@@ -114,18 +114,19 @@ else
 fi
 
 # 4. Find the matching release asset download URL
-ASSET_NAME="cremio-${PLATFORM}"
+ASSET_PATTERN="cremio-${PLATFORM}"
 
 # Search from the asset's "name" line to the next closing brace of that JSON object,
 # then extract browser_download_url within that range.
-ASSET_URL=$(printf '%s\n' "$RELEASE_DATA" | sed -n "/\"name\": *\"${ASSET_NAME}\"/,/}/ s/.*\"browser_download_url\": *\"\([^\"]*\)\".*/\1/p" | head -1)
+# Tolerates trailing extensions/suffixes (e.g. .tar.gz, -v1.2.3).
+ASSET_URL=$(printf '%s\n' "$RELEASE_DATA" | sed -n "/\"name\": *\"${ASSET_PATTERN}[^\"]*\"/,/}/ s/.*\"browser_download_url\": *\"\([^\"]*\)\".*/\1/p" | head -1)
 
 if [ -z "$ASSET_URL" ]; then
     available=$(printf '%s\n' "$RELEASE_DATA" | grep '"name":' | sed -E 's/.*"name": *"([^"]+)".*/\1/' | tr '\n' ' ')
-    err "No release asset found for '${ASSET_NAME}'. Available assets: ${available}"
+    err "No release asset found matching '${ASSET_PATTERN}'. Available assets: ${available}"
 fi
 
-info "Downloading ${ASSET_NAME} ..."
+info "Downloading ${ASSET_PATTERN} ..."
 
 # 5. Download and install
 mkdir -p "$INSTALL_DIR"
